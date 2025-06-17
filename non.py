@@ -6,6 +6,28 @@ import os
 import platform
 import sys
 
+
+def get_display_resolution():
+    """Return screen resolution using tkinter or pyautogui as fallback."""
+    try:
+        import tkinter as tk
+
+        root = tk.Tk()
+        root.withdraw()
+        width = root.winfo_screenwidth()
+        height = root.winfo_screenheight()
+        root.destroy()
+        return width, height
+    except Exception:
+        try:
+            import pyautogui
+
+            size = pyautogui.size()
+            return size.width, size.height
+        except Exception:
+            # Reasonable default if both methods fail
+            return 1280, 720
+
 # Initialisation MediaPipe
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(static_image_mode=False, max_num_hands=2,
@@ -59,7 +81,18 @@ if not cap.isOpened():
     cv2.putText(message_img, "Aucune webcam trouv\u00E9e", (100, 220), 
                 cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 255), 3)
     while True:
-        _, _, win_width, win_height = cv2.getWindowImageRect(window_name)
+        fullscreen = cv2.getWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN)
+        try:
+            _, _, win_width, win_height = cv2.getWindowImageRect(window_name)
+        except cv2.error:
+            win_width, win_height = get_display_resolution()
+            if fullscreen >= 1:
+                cv2.resizeWindow(window_name, win_width, win_height)
+
+        if fullscreen >= 1 and (win_width == 0 or win_height == 0):
+            win_width, win_height = get_display_resolution()
+            cv2.resizeWindow(window_name, win_width, win_height)
+
         resized = resize_with_aspect_ratio(message_img, win_width, win_height)
         cv2.imshow(window_name, resized)
         if cv2.waitKey(100) & 0xFF == ord('q'):
@@ -138,7 +171,19 @@ while cap.isOpened():
 
     # Resize avec conservation du ratio
     try:
-        _, _, win_w, win_h = cv2.getWindowImageRect(window_name)
+        fullscreen = cv2.getWindowProperty(window_name,
+                                           cv2.WND_PROP_FULLSCREEN)
+        try:
+            _, _, win_w, win_h = cv2.getWindowImageRect(window_name)
+        except cv2.error:
+            win_w, win_h = get_display_resolution()
+            if fullscreen >= 1:
+                cv2.resizeWindow(window_name, win_w, win_h)
+
+        if fullscreen >= 1 and (win_w == 0 or win_h == 0):
+            win_w, win_h = get_display_resolution()
+            cv2.resizeWindow(window_name, win_w, win_h)
+
         resized = resize_with_aspect_ratio(image, win_w, win_h)
         cv2.imshow(window_name, resized)
     except cv2.error:
